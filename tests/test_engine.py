@@ -1,4 +1,5 @@
 import json
+import sys
 import textwrap
 
 import pytest
@@ -109,6 +110,7 @@ def test_config_rejects_unknown_keys(tmp_path):
         Config.load(p)
 
 
+@pytest.mark.skipif(sys.version_info < (3, 11), reason="tomllib needs Python 3.11+")
 def test_pyproject_config(tmp_path):
     (tmp_path / ".git").mkdir()
     (tmp_path / "pyproject.toml").write_text('[tool.chainmail]\nmin_severity = "high"\n')

@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chainmail-example-plugin"
+version = "0.1.0"
+description = "Example third-party detector for Chainmail"
+dependencies = ["chainmail-audit"]
+
+[project.entry-points."chainmail.detectors"]
+hardcoded-address = "chainmail_example_plugin:HardcodedAddress"

@@ -1,0 +1,48 @@
+name: "Chainmail Smart Contract Audit"
+description: "Static analysis of Solidity smart contracts with Chainmail; uploads SARIF to GitHub Code Scanning."
+author: "Yassine Allani"
+branding:
+  icon: shield
+  color: gray-dark
+
+inputs:
+  path:
+    description: "Files or directories to scan"
+    default: "."
+  fail-on:
+    description: "Fail the job if a finding at/above this severity is found (critical|high|medium|low|info|gas|none)"
+    default: "high"
+  min-severity:
+    description: "Hide findings below this severity"
+    default: "low"
+  upload-sarif:
+    description: "Upload results to GitHub Code Scanning"
+    default: "true"
+  args:
+    description: "Extra arguments passed to `chainmail scan`"
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - shell: bash
+      run: pip install "${{ github.action_path }}"
+    - id: scan
+      shell: bash
+      run: |
+        set +e
+        chainmail scan ${{ inputs.path }} --fail-on "${{ inputs.fail-on }}" --min-severity "${{ inputs.min-severity }}" \
+          -o chainmail.sarif -o chainmail.md ${{ inputs.args }}
+        code=$?
+        cat chainmail.md >> "$GITHUB_STEP_SUMMARY"
+        echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+    - if: inputs.upload-sarif == 'true'
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: chainmail.sarif
+        category: chainmail
+    - shell: bash
+      run: exit ${{ steps.scan.outputs.exit_code }}

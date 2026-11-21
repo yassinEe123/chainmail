@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chainmail audit report</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --ink: #1d2330; --muted: #6b7385; --line: #e3e6ec;
+    --critical: #8b1020; --high: #d1452b; --medium: #c98a00; --low: #2b7bb9; --info: #5f6b7d; --gas: #7a4cc2;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #12151b; --card: #1a1f27; --ink: #e7eaf0; --muted: #98a1b3; --line: #2a313d; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--ink); }
+  header { padding: 32px 40px 24px; border-bottom: 1px solid var(--line); background: var(--card); }
+  header h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--muted); font-size: 13px; }
+  main { max-width: 1100px; margin: 0 auto; padding: 28px 40px 60px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .stat .k { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .stat .v { font-size: 24px; font-weight: 650; margin-top: 2px; }
+  .sev { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #fff; letter-spacing: .03em; }
+  .sev.critical { background: var(--critical); } .sev.high { background: var(--high); } .sev.medium { background: var(--medium); }
+  .sev.low { background: var(--low); } .sev.info { background: var(--info); } .sev.gas { background: var(--gas); }
+  .bar { display: flex; height: 10px; border-radius: 999px; overflow: hidden; background: var(--line); margin: 6px 0 18px; }
+  .bar span { display: block; height: 100%; }
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0; align-items: center; }
+  .filters button { border: 1px solid var(--line); background: var(--card); color: var(--ink); padding: 6px 12px; border-radius: 8px; cursor: pointer; font: inherit; font-size: 13px; }
+  .filters button.off { opacity: .4; }
+  .filters input { flex: 1; min-width: 200px; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; font-size: 13px; }
+  table.overview { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; font-size: 14px; }
+  table.overview th, table.overview td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.overview th { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  table.overview a { color: inherit; }
+  code, .mono { font-family: var(--mono); font-size: 13px; }
+  .finding { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--info); border-radius: 10px; padding: 18px 20px; margin: 16px 0; }
+  .finding.critical { border-left-color: var(--critical); } .finding.high { border-left-color: var(--high); }
+  .finding.medium { border-left-color: var(--medium); } .finding.low { border-left-color: var(--low); } .finding.gas { border-left-color: var(--gas); }
+  .finding h3 { margin: 6px 0 4px; font-size: 17px; }
+  .meta { color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+  pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; overflow-x: auto; margin: 12px 0; }
+  .label { font-weight: 650; font-size: 13px; margin-top: 12px; }
+  .refs a { color: var(--low); font-size: 13px; word-break: break-all; }
+  footer { color: var(--muted); font-size: 12px; text-align: center; padding: 20px; }
+  h2 { font-size: 18px; margin: 30px 0 10px; }
+  .empty { padding: 40px; text-align: center; background: var(--card); border: 1px dashed var(--line); border-radius: 10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Smart contract audit report</h1>
+  <p>Chainmail v{{ result.tool_version }} · generated {{ generated }} · {{ result.files|length }} file(s) · {{ "%.2f"|format(result.duration) }}s</p>
+</header>
+<main>
+  <div class="grid">
+    <div class="stat"><div class="k">Findings</div><div class="v">{{ findings|length }}</div></div>
+    <div class="stat"><div class="k">Risk score</div><div class="v">{{ result.risk_score }}<span style="font-size:14px;color:var(--muted)">/100</span></div></div>
+    <div class="stat"><div class="k">Contracts</div><div class="v">{{ result.contracts }}</div></div>
+    <div class="stat"><div class="k">Functions</div><div class="v">{{ result.functions }}</div></div>
+    <div class="stat"><div class="k">Lines of code</div><div class="v">{{ result.lines_of_code }}</div></div>
+    <div class="stat"><div class="k">Detectors</div><div class="v">{{ result.detectors_run|length }}</div></div>
+  </div>
+
+  {% set total = findings|length or 1 %}
+  <div class="bar">
+    {% for sev, n in counts.items() %}{% if n %}<span title="{{ sev }}: {{ n }}" style="width: {{ (n / total * 100)|round(2) }}%; background: var(--{{ sev }})"></span>{% endif %}{% endfor %}
+  </div>
+  <div class="meta">
+    {% for sev, n in counts.items() %}<span><span class="sev {{ sev }}">{{ sev }}</span> {{ n }}</span>{% endfor %}
+  </div>
+
+  {% if findings %}
+  <h2>Overview</h2>
+  <div class="filters" id="filters">
+    {% for sev, n in counts.items() %}{% if n %}<button data-sev="{{ sev }}">{{ sev }} ({{ n }})</button>{% endif %}{% endfor %}
+    <input id="search" type="search" placeholder="Filter by detector, file, contract...">
+  </div>
+  <table class="overview">
+    <thead><tr><th>ID</th><th>Title</th><th>Severity</th><th>Confidence</th><th>Location</th></tr></thead>
+    <tbody>
+    {% for f in findings %}
+      <tr class="row" data-sev="{{ f.severity }}" data-text="{{ (f.detector ~ ' ' ~ f.location.file ~ ' ' ~ (f.location.contract or '') ~ ' ' ~ f.title)|lower }}">
+        <td class="mono"><a href="#{{ f.id }}">{{ f.id }}</a></td>
+        <td>{{ f.title|code }}</td>
+        <td><span class="sev {{ f.severity }}">{{ f.severity }}</span></td>
+        <td>{{ f.confidence }}</td>
+        <td class="mono">{{ f.location.file }}:{{ f.location.line }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>Findings</h2>
+  {% for f in findings %}
+  <section class="finding {{ f.severity }}" id="{{ f.id }}" data-sev="{{ f.severity }}" data-text="{{ (f.detector ~ ' ' ~ f.location.file ~ ' ' ~ (f.location.contract or '') ~ ' ' ~ f.title)|lower }}">
+    <span class="sev {{ f.severity }}">{{ f.severity }}</span> <span class="mono" style="color:var(--muted)">{{ f.id }}</span>
+    <h3>{{ f.title|code }}</h3>
+    <div class="meta">
+      <span>Detector <code>{{ f.detector }}</code></span>
+      <span>Confidence {{ f.confidence }}</span>
+      {% if f.swc %}<span><a href="https://swcregistry.io/docs/{{ f.swc }}">{{ f.swc }}</a></span>{% endif %}
+      {% if f.cwe %}<span>{{ f.cwe }}</span>{% endif %}
+      <span class="mono">{{ f.location.file }}:{{ f.location.line }}</span>
+      {% if f.location.contract %}<span class="mono">{{ f.location.contract }}{% if f.location.function %}.{{ f.location.function }}{% endif %}</span>{% endif %}
+    </div>
+    {% if f.snippet %}<pre><code>{{ f.location.line }} │ {{ f.snippet }}</code></pre>{% endif %}
+    <div>{{ f.description|code }}</div>
+    {% if f.recommendation %}<div class="label">Recommendation</div><div>{{ f.recommendation|code }}</div>{% endif %}
+    {% if f.references %}<div class="label">References</div><div class="refs">{% for r in f.references %}<a href="{{ r }}">{{ r }}</a><br>{% endfor %}</div>{% endif %}
+  </section>
+  {% endfor %}
+  {% else %}
+  <div class="empty">No issues found by the enabled detectors.</div>
+  {% endif %}
+
+  <h2>Scope</h2>
+  <ul class="mono">{% for p in result.files %}<li>{{ p }}</li>{% endfor %}</ul>
+  {% if result.parse_errors %}
+  <h2>Parser warnings</h2>
+  <ul class="mono">{% for p, e in result.parse_errors %}<li>{{ p }}: {{ e }}</li>{% endfor %}</ul>
+  {% endif %}
+</main>
+<footer>Automated analysis is a starting point, not a substitute for manual review.</footer>
+<script>
+(function () {
+  var off = {};
+  var q = "";
+  function apply() {
+    document.querySelectorAll("[data-sev][data-text]").forEach(function (el) {
+      var show = !off[el.dataset.sev] && (!q || el.dataset.text.indexOf(q) !== -1);
+      el.style.display = show ? "" : "none";
+    });
+  }
+  document.querySelectorAll("#filters button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      off[b.dataset.sev] = !off[b.dataset.sev];
+      b.classList.toggle("off", off[b.dataset.sev]);
+      apply();
+    });
+  });
+  var s = document.getElementById("search");
+  if (s) s.addEventListener("input", function () { q = s.value.toLowerCase(); apply(); });
+})();
+</script>
+</body>
+</html>

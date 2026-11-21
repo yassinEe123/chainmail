@@ -48,7 +48,9 @@ def render_sarif(result: ScanResult) -> str:
         if cls is None:
             rules.append({"id": rid})
             continue
-        tags = ["security", cls.category]
+        tags = ["security"]
+        if cls.category != "security":
+            tags.append(cls.category)
         if cls.swc:
             tags.append(cls.swc)
         if cls.cwe:
